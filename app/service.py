@@ -1,6 +1,4 @@
-import os
-import asyncio
-import dotenv
+import json
 
 from datetime import datetime, timedelta
 from motor import motor_asyncio
@@ -8,6 +6,9 @@ from collections import defaultdict
 
 
 class MongoDBLoader:
+    """
+    Класс отвечает за подключение к MongoDB и выгрузку данных из коллекции.
+    """
     def __init__(self, db_url, db_name, collection_name):
         self.client = motor_asyncio.AsyncIOMotorClient(db_url)
         self.db = self.client[db_name]
@@ -24,17 +25,29 @@ class MongoDBLoader:
         return data
 
 
-async def main(input_data, MONGODB_URL, MONGODB_DB, MONGODB_COLL):
+async def main(message_text, MONGODB_URL, MONGODB_DB, MONGODB_COLL):
     dataset = []
     labels = []
     delta = None
-    dt_from = datetime.fromisoformat(input_data["dt_from"])
-    dt_upto = datetime.fromisoformat(input_data["dt_upto"])
-    current = dt_from
-    group_type = input_data["group_type"]
     aggregated_data = defaultdict(int)
 
     mongodb_loader = MongoDBLoader(MONGODB_URL, MONGODB_DB, MONGODB_COLL)
+
+    try:
+        json_data = json.loads(message_text)
+        dt_from = json_data["dt_from"]
+        dt_upto = json_data["dt_upto"]
+        group_type = json_data["group_type"]
+    except:
+        return """
+Допустимо отправлять только следующие запросы:
+{"dt_from": "2022-09-01T00:00:00", "dt_upto": "2022-12-31T23:59:00", "group_type": "month"}
+{"dt_from": "2022-10-01T00:00:00", "dt_upto": "2022-11-30T23:59:00", "group_type": "day"}
+{"dt_from": "2022-02-01T00:00:00", "dt_upto": "2022-02-02T00:00:00", "group_type": "hour"}"""
+    
+    dt_from = datetime.fromisoformat(dt_from)
+    dt_upto = datetime.fromisoformat(dt_upto)
+    current = dt_from
     data = await mongodb_loader.load_data(dt_from, dt_upto)
 
     if group_type == 'hour':
