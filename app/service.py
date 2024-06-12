@@ -22,21 +22,12 @@ class MongoDBLoader:
         })
         data = await cursor.to_list(length=None)
         return data
-    
-dotenv.load_dotenv()
 
-MONGODB_URL = os.getenv("MONGODB_URL", "mongodb://localhost:27017")
-MONGODB_DB = os.getenv("MONGODB_DB", "database")
-MONGODB_COLL = os.getenv("MONGODB_COLL", "collection")
 
-input_data = {
-    "dt_from": "2022-09-01T00:00:00", 
-    "dt_upto": "2022-12-31T23:59:00", 
-    "group_type": "month"}
-
-async def main():
+async def main(input_data, MONGODB_URL, MONGODB_DB, MONGODB_COLL):
     dataset = []
     labels = []
+    delta = None
     dt_from = datetime.fromisoformat(input_data["dt_from"])
     dt_upto = datetime.fromisoformat(input_data["dt_upto"])
     current = dt_from
@@ -47,12 +38,16 @@ async def main():
     data = await mongodb_loader.load_data(dt_from, dt_upto)
 
     if group_type == 'hour':
+        delta = timedelta(hours=1)
         date_format = "%Y-%m-%dT%H:00:00"
     elif group_type == 'day':
+        delta = timedelta(days=1)
         date_format = "%Y-%m-%dT00:00:00"
     elif group_type == 'month':
         date_format = "%Y-%m-01T00:00:00"
-    
+    else:
+        raise ValueError("Unsupported group_type. Use 'hour', 'day', or 'month'.")
+
     for entry in data:
         dt = entry['dt']
         value = entry['value']
@@ -65,16 +60,20 @@ async def main():
 
         aggregated_data[key] += value
     
-    while current < dt_upto:
-        key = current.strftime(date_format)
-        dataset.append(aggregated_data[key])
-        labels.append(key)
-        if current.month == 12:
-            current = current.replace(year=current.year+1, month=1)
-        else:
-            current = current.replace(month=current.month+1)
-
-        print("dataset", aggregated_data[key], "labels", key)
-
-asyncio.run(main())
-
+    if group_type == 'month':
+        while current < dt_upto:
+            key = current.strftime(date_format)
+            dataset.append(aggregated_data[key])
+            labels.append(key)
+            if current.month == 12:
+                current = current.replace(year=current.year+1, month=1)
+            else:
+                current = current.replace(month=current.month+1)
+    else:
+        while current < dt_upto:
+            key = current.strftime(date_format)
+            dataset.append(aggregated_data[key])
+            labels.append(key)
+            current += delta
+    
+    return {"dataset": dataset, "labels": labels}
