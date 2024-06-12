@@ -25,7 +25,7 @@ class MongoDBLoader:
         return data
 
 
-async def main(message_text, MONGODB_URL, MONGODB_DB, MONGODB_COLL):
+async def get_aggregate_data(message_text, MONGODB_URL, MONGODB_DB, MONGODB_COLL):
     dataset = []
     labels = []
     delta = None

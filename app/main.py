@@ -1,15 +1,52 @@
 import os
 import asyncio
 import dotenv
+import logging
 
-from service import main
+from aiogram.client.bot import Bot
+from aiogram.types.message import Message
+from aiogram.dispatcher.dispatcher import Dispatcher
+
+from service import get_aggregate_data
 
 dotenv.load_dotenv()
 
+API_TOKEN = os.getenv("API_TOKEN")
 MONGODB_URL = os.getenv("MONGODB_URL", "mongodb://localhost:27017")
 MONGODB_DB = os.getenv("MONGODB_DB", "database")
 MONGODB_COLL = os.getenv("MONGODB_COLL", "collection")
 
-input_data = '{"dt_from": "2022-09-01T00:00:00", "dt_upto": "2022-12-31T23:59:00", "group_type": "month"}'
+bot = Bot(token=API_TOKEN)
+dp = Dispatcher()
 
-print(asyncio.run(main(input_data, MONGODB_URL, MONGODB_DB, MONGODB_COLL)))
+
+def chunks(lst, n):
+    """
+    Дробление текста на куски
+    """
+    for i in range(0, len(lst), n):
+        yield lst[i:i + n]
+
+async def send_result(chat_id, result):
+    """
+    Отправка агрегированных данных в сообщениях
+    с учетом длины сообщения Telegram
+    """
+    for chunk in chunks(result, 4096):
+        await bot.send_message(chat_id, chunk)
+
+@dp.message()
+async def send_message(message):
+    """
+    Обработка входящих сообщений
+    """
+    result = await get_aggregate_data(message.text,
+                                      MONGODB_URL, 
+                                      MONGODB_DB, 
+                                      MONGODB_COLL)
+    await send_result(message.chat.id, str(result))
+
+
+if __name__ == '__main__':
+    logging.basicConfig(level=logging.INFO)
+    dp.run_polling(bot)
