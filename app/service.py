@@ -57,6 +57,7 @@ async def get_aggregate_data(message_text, MONGODB_URL, MONGODB_DB, MONGODB_COLL
         delta = timedelta(days=1)
         date_format = "%Y-%m-%dT00:00:00"
     elif group_type == 'month':
+        delta = timedelta(days=30)
         date_format = "%Y-%m-01T00:00:00"
     else:
         raise ValueError("Unsupported group_type. Use 'hour', 'day', or 'month'.")
@@ -74,7 +75,7 @@ async def get_aggregate_data(message_text, MONGODB_URL, MONGODB_DB, MONGODB_COLL
         aggregated_data[key] += value
     
     if group_type == 'month':
-        while current < dt_upto:
+        while current <= dt_upto:
             key = current.strftime(date_format)
             dataset.append(aggregated_data.get(key, 0))
             labels.append(key)
@@ -83,10 +84,10 @@ async def get_aggregate_data(message_text, MONGODB_URL, MONGODB_DB, MONGODB_COLL
             else:
                 current = current.replace(month=current.month+1)
     else:
-        while current < dt_upto:
+        while current <= dt_upto:
             key = current.strftime(date_format)
             dataset.append(aggregated_data.get(key, 0))
             labels.append(key)
             current += delta
     
-    return {"dataset": dataset, "labels": labels}
+    return json.dumps({"dataset": dataset, "labels": labels}, ensure_ascii=False)
