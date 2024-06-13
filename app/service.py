@@ -18,7 +18,7 @@ class MongoDBLoader:
         cursor = self.collection.find({
             "dt": {
                 "$gte": dt_from,
-                "$lt": dt_upto
+                "$lte": dt_upto
             }
         })
         data = await cursor.to_list(length=None)
@@ -76,7 +76,7 @@ async def get_aggregate_data(message_text, MONGODB_URL, MONGODB_DB, MONGODB_COLL
     if group_type == 'month':
         while current < dt_upto:
             key = current.strftime(date_format)
-            dataset.append(aggregated_data[key])
+            dataset.append(aggregated_data.get(key, 0))
             labels.append(key)
             if current.month == 12:
                 current = current.replace(year=current.year+1, month=1)
@@ -85,7 +85,7 @@ async def get_aggregate_data(message_text, MONGODB_URL, MONGODB_DB, MONGODB_COLL
     else:
         while current < dt_upto:
             key = current.strftime(date_format)
-            dataset.append(aggregated_data[key])
+            dataset.append(aggregated_data.get(key, 0))
             labels.append(key)
             current += delta
     
